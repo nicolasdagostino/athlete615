@@ -5,6 +5,7 @@ import '../../../../shared/enums/app_role.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/feedback/app_loader.dart';
 import '../../../../shared/widgets/layout/app_scaffold.dart';
+import '../../../admin/presentation/screens/class_roster_screen.dart';
 import '../../data/booking_repository_impl.dart';
 import '../../domain/models/class_booking.dart';
 import '../../domain/models/gym_class.dart';
@@ -45,6 +46,10 @@ class _BookingScreenState extends State<BookingScreen> {
     });
   }
 
+  Future<void> _refresh() async {
+    await _load();
+  }
+
   Future<void> _cancelClass(GymClass item) async {
     try {
       await _repo.cancelBooking(item.id);
@@ -79,15 +84,35 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
-  void _showMessage(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(text)),
+  Future<void> _openRoster(GymClass item) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ClassRosterScreen(
+          classId: item.id,
+          className: item.name,
+        ),
+      ),
     );
+
+    await _load();
+  }
+
+  
+
+  bool _canCheckIn(GymClass item) {
+    final now = DateTime.now();
+    final start = item.startsAt;
+    final end = start.add(Duration(minutes: item.durationMinutes));
+    final checkInStart = start.subtract(const Duration(minutes: 10));
+
+    return (now.isAfter(checkInStart) || now.isAtSameMomentAs(checkInStart)) &&
+        now.isBefore(end);
   }
 
   bool _isBooked(String classId) {
-    return _myBookings.any((booking) =>
-        booking.classId == classId && booking.status == 'booked');
+    return _myBookings.any(
+      (booking) => booking.classId == classId && booking.status == 'booked',
+    );
   }
 
   ({String label, IconData icon, VoidCallback? action}) _primaryAction(
@@ -99,10 +124,44 @@ class _BookingScreenState extends State<BookingScreen> {
     switch (role) {
       case AppRole.athlete:
         if (booked) {
+          final attended = _myBookings.any(
+            (b) => b.classId == item.id && b.status == 'attended',
+          );
+
+          if (attended) {
+            return (
+              label: 'Checked in',
+              icon: Icons.verified,
+              action: null,
+            );
+          }
+
+          if (_canCheckIn(item)) {
+            return (
+              label: 'Check in',
+              icon: Icons.login,
+              action: () async {
+                await _repo.checkInToClass(item.id);
+                await _load();
+              },
+            );
+          }
+
+          final now = DateTime.now();
+          final hasStarted = now.isAfter(item.startsAt);
+
+          if (!hasStarted) {
+            return (
+              label: 'Cancel booking',
+              icon: Icons.cancel_outlined,
+              action: () => _cancelClass(item),
+            );
+          }
+
           return (
-            label: 'Cancel booking',
-            icon: Icons.cancel_outlined,
-            action: () => _cancelClass(item),
+            label: 'Class in progress',
+            icon: Icons.timer,
+            action: null,
           );
         }
 
@@ -124,21 +183,21 @@ class _BookingScreenState extends State<BookingScreen> {
         return (
           label: 'Open roster',
           icon: Icons.fact_check_outlined,
-          action: () => _showMessage('Open roster for ${item.name}'),
+          action: () => _openRoster(item),
         );
 
       case AppRole.admin:
         return (
-          label: 'Manage class',
-          icon: Icons.settings_outlined,
-          action: () => _showMessage('Manage ${item.name}'),
+          label: 'Manage roster',
+          icon: Icons.fact_check_outlined,
+          action: () => _openRoster(item),
         );
 
       case AppRole.owner:
         return (
-          label: 'View gym usage',
-          icon: Icons.bar_chart_outlined,
-          action: () => _showMessage('Owner view for ${item.name}'),
+          label: 'View roster',
+          icon: Icons.fact_check_outlined,
+          action: () => _openRoster(item),
         );
 
       case null:
@@ -167,6 +226,12 @@ class _BookingScreenState extends State<BookingScreen> {
   String _formatDay(DateTime value) {
     const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return names[value.weekday - 1];
+  }
+
+  String _formatDate(DateTime value) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    return '$day/$month';
   }
 
   String _formatTime(DateTime value, int durationMinutes) {
@@ -203,12 +268,16 @@ class _BookingScreenState extends State<BookingScreen> {
     if (days.isEmpty) {
       return AppScaffold(
         title: 'Booking',
-        child: ListView(
-          children: const [
-            AppCard(
-              child: Text('No upcoming classes for this gym'),
-            ),
-          ],
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: const [
+              AppCard(
+                child: Text('No upcoming classes for this gym'),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -217,20 +286,23 @@ class _BookingScreenState extends State<BookingScreen> {
       _selectedDayIndex = 0;
     }
 
+    final selectedDay = days[_selectedDayIndex];
     final items = _classesForSelectedDay();
-    final roleLabel = AppSession.roleLabel;
 
     return AppScaffold(
       title: 'Booking',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AppCard(
-            child: Text('Current role: $roleLabel'),
+          Text(
+            '${_formatDay(selectedDay)} • ${_formatDate(selectedDay)}',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
           ),
           const SizedBox(height: AppSpacing.md),
           BookingDaySelector(
-            days: days.map(_formatDay).toList(),
+            days: days.map((day) => '${_formatDay(day)} ${_formatDate(day)}').toList(),
             selectedIndex: _selectedDayIndex,
             onSelected: (index) {
               setState(() => _selectedDayIndex = index);
@@ -238,30 +310,41 @@ class _BookingScreenState extends State<BookingScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
           Expanded(
-            child: items.isEmpty
-                ? const Center(
-                    child: Text('No classes for this day'),
-                  )
-                : ListView.separated(
-                    itemCount: items.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: AppSpacing.md),
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      final action = _primaryAction(item);
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: items.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(height: 120),
+                        Center(
+                          child: Text('No classes for this day'),
+                        ),
+                      ],
+                    )
+                  : ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: items.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: AppSpacing.md),
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        final action = _primaryAction(item);
 
-                      return ClassCard(
-                        name: item.name,
-                        coachName: item.coachName,
-                        timeLabel: _formatTime(item.startsAt, item.durationMinutes),
-                        spotsLeft: item.spotsLeft,
-                        primaryLabel: action.label,
-                        primaryIcon: action.icon,
-                        onPrimaryPressed: action.action,
-                        isBooked: _isBooked(item.id),
-                      );
-                    },
-                  ),
+                        return ClassCard(
+                          name: item.name,
+                          coachName: item.coachName,
+                          timeLabel: _formatTime(item.startsAt, item.durationMinutes),
+                          bookedCount: item.bookedCount,
+                          capacity: item.capacity,
+                          primaryLabel: action.label,
+                          primaryIcon: action.icon,
+                          onPrimaryPressed: action.action,
+                          isBooked: _isBooked(item.id),
+                        );
+                      },
+                    ),
+            ),
           ),
         ],
       ),

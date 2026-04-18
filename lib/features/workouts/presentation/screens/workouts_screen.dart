@@ -1,85 +1,111 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_text_styles.dart';
+import '../../../../shared/widgets/cards/app_card.dart';
+import '../../../../shared/widgets/feedback/app_loader.dart';
 import '../../../../shared/widgets/layout/app_scaffold.dart';
+import '../../data/workouts_repository_impl.dart';
+import '../../domain/models/workout_summary.dart';
 import 'workout_detail_screen.dart';
 import '../widgets/workout_card.dart';
 
-class WorkoutsScreen extends StatelessWidget {
+class WorkoutsScreen extends StatefulWidget {
   const WorkoutsScreen({super.key});
 
   @override
+  State<WorkoutsScreen> createState() => _WorkoutsScreenState();
+}
+
+class _WorkoutsScreenState extends State<WorkoutsScreen> {
+  final _repo = WorkoutsRepositoryImpl();
+
+  bool _loading = true;
+  List<WorkoutSummary> _items = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final items = await _repo.listTodayWorkouts();
+
+    if (!mounted) return;
+
+    setState(() {
+      _items = items;
+      _loading = false;
+    });
+  }
+
+  Future<void> _refresh() async {
+    await _load();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    const items = <_WorkoutItem>[
-      _WorkoutItem(
-        title: 'Monday WOD',
-        dateLabel: 'Today · 07:00',
-        description:
-            'For time: 21-15-9 thrusters and pull-ups. Then finish with a short core burner.',
-        likesCount: 12,
-        commentsCount: 4,
-      ),
-      _WorkoutItem(
-        title: 'Strength Day',
-        dateLabel: 'Yesterday · 18:00',
-        description:
-            'Build to a heavy front squat, then 3 rounds of 12 burpees and 400m run.',
-        likesCount: 8,
-        commentsCount: 2,
-      ),
-      _WorkoutItem(
-        title: 'Partner Workout',
-        dateLabel: 'Saturday · 10:00',
-        description:
-            'AMRAP 20 with your partner: sync burpees, DB snatches, and row calories.',
-        likesCount: 15,
-        commentsCount: 7,
-      ),
-    ];
+    if (_loading) {
+      return const AppScaffold(
+        title: 'Workouts',
+        child: AppLoader(label: 'Loading workouts...'),
+      );
+    }
 
     return AppScaffold(
       title: 'Workouts',
-      child: ListView.separated(
-        itemCount: items.length,
-        separatorBuilder: (context, index) =>
-            const SizedBox(height: AppSpacing.md),
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return WorkoutCard(
-            title: item.title,
-            description: item.description,
-            dateLabel: item.dateLabel,
-            likesCount: item.likesCount,
-            commentsCount: item.commentsCount,
-            onOpen: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => WorkoutDetailScreen(
+      child: RefreshIndicator(
+        onRefresh: _refresh,
+        child: _items.isEmpty
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  AppCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('No workouts for today', style: AppTextStyles.title),
+                        SizedBox(height: AppSpacing.sm),
+                        Text(
+                          'When a workout is published for today, it will appear here.',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            : ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: _items.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: AppSpacing.md),
+                itemBuilder: (context, index) {
+                  final item = _items[index];
+
+                  return WorkoutCard(
                     title: item.title,
                     description: item.description,
-                    dateLabel: item.dateLabel,
-                  ),
-                ),
-              );
-            },
-          );
-        },
+                    dateLabel: item.programLabel,
+                    likesCount: item.likesCount,
+                    commentsCount: item.commentsCount,
+                    onOpen: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => WorkoutDetailScreen(
+                            workoutId: item.id,
+                            title: item.title,
+                            description: item.description,
+                            dateLabel: item.programLabel,
+                            likesCount: item.likesCount,
+                            commentsCount: item.commentsCount,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
       ),
     );
   }
-}
-
-class _WorkoutItem {
-  const _WorkoutItem({
-    required this.title,
-    required this.dateLabel,
-    required this.description,
-    required this.likesCount,
-    required this.commentsCount,
-  });
-
-  final String title;
-  final String dateLabel;
-  final String description;
-  final int likesCount;
-  final int commentsCount;
 }

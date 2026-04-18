@@ -16,7 +16,7 @@ class BookingDaySelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 44,
+      height: 46,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: days.length,
@@ -25,10 +25,30 @@ class BookingDaySelector extends StatelessWidget {
         itemBuilder: (context, index) {
           final selected = index == selectedIndex;
 
-          return ChoiceChip(
-            label: Text(days[index]),
-            selected: selected,
-            onSelected: (_) => onSelected(index),
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            child: ChoiceChip(
+              label: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Text(days[index]),
+              ),
+              selected: selected,
+              onSelected: (_) => onSelected(index),
+              selectedColor: Colors.black,
+              backgroundColor: Colors.black.withValues(alpha: 0.05),
+              labelStyle: TextStyle(
+                color: selected ? Colors.white : Colors.black87,
+                fontWeight: FontWeight.w700,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              side: BorderSide(
+                color: selected
+                    ? Colors.black
+                    : Colors.black.withValues(alpha: 0.08),
+              ),
+            ),
           );
         },
       ),

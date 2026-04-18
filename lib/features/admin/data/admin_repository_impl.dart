@@ -34,28 +34,20 @@ class AdminRepositoryImpl {
     final gymId = AppSession.gymId;
     if (gymId == null) return const [];
 
-    final rows = await client
-        .from('classes')
-        .select('id, name, coach_name, starts_at, duration_minutes, capacity, class_bookings(status)')
-        .eq('gym_id', gymId)
-        .order('starts_at', ascending: true);
+    final rows = await client.rpc(
+      'list_gym_classes_with_counts',
+      params: {'p_gym_id': gymId},
+    );
 
     return rows.map<AdminClassSummary>((row) {
-      final bookings = List<Map<String, dynamic>>.from(
-        row['class_bookings'] as List? ?? const [],
-      );
-
-      final bookedCount =
-          bookings.where((booking) => booking['status'] == 'booked').length;
-
       return AdminClassSummary(
         id: row['id'] as String,
         name: row['name'] as String,
         coachName: (row['coach_name'] as String?) ?? 'Unknown coach',
-        startsAt: DateTime.parse(row['starts_at'] as String),
+        startsAt: DateTime.parse(row['starts_at'] as String).toLocal(),
         durationMinutes: (row['duration_minutes'] as num).toInt(),
         capacity: (row['capacity'] as num).toInt(),
-        bookedCount: bookedCount,
+        bookedCount: (row['booked_count'] as num).toInt(),
       );
     }).toList();
   }
@@ -63,23 +55,18 @@ class AdminRepositoryImpl {
   Future<List<ClassRosterItem>> listClassRoster(String classId) async {
     final client = SupabaseClientProvider.client;
 
-    final rows = await client
-        .from('class_bookings')
-        .select('id, class_id, user_id, status, profiles!inner(full_name, email)')
-        .eq('class_id', classId)
-        .order('created_at', ascending: true);
+    final rows = await client.rpc(
+      'list_class_roster',
+      params: {'p_class_id': classId},
+    );
 
     return rows.map<ClassRosterItem>((row) {
-      final profile = row['profiles'] as Map<String, dynamic>;
-
       return ClassRosterItem(
-        bookingId: row['id'] as String,
+        bookingId: row['booking_id'] as String,
         classId: row['class_id'] as String,
         userId: row['user_id'] as String,
-        fullName: (profile['full_name'] as String?)?.trim().isNotEmpty == true
-            ? profile['full_name'] as String
-            : 'Unnamed user',
-        email: (profile['email'] as String?) ?? '',
+        fullName: row['full_name'] as String,
+        email: row['email'] as String,
         status: row['status'] as String,
       );
     }).toList();
@@ -102,21 +89,16 @@ class AdminRepositoryImpl {
     final gymId = AppSession.gymId;
     if (gymId == null) return const [];
 
-    final rows = await client
-        .from('gym_user_roles')
-        .select('role, user_id, profiles!inner(full_name, email)')
-        .eq('gym_id', gymId)
-        .order('created_at', ascending: false);
+    final rows = await client.rpc(
+      'list_gym_members',
+      params: {'p_gym_id': gymId},
+    );
 
     return rows.map<AdminMemberSummary>((row) {
-      final profile = row['profiles'] as Map<String, dynamic>;
-
       return AdminMemberSummary(
         userId: row['user_id'] as String,
-        fullName: (profile['full_name'] as String?)?.trim().isNotEmpty == true
-            ? profile['full_name'] as String
-            : 'Unnamed user',
-        email: (profile['email'] as String?) ?? '',
+        fullName: row['full_name'] as String,
+        email: row['email'] as String,
         role: row['role'] as String,
       );
     }).toList();

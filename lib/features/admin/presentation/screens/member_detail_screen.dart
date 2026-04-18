@@ -8,13 +8,13 @@ class MemberDetailScreen extends StatelessWidget {
   const MemberDetailScreen({
     super.key,
     required this.name,
-    required this.plan,
-    required this.status,
+    required this.email,
+    required this.role,
   });
 
   final String name;
-  final String plan;
-  final String status;
+  final String email;
+  final String role;
 
   void _showMessage(BuildContext context, String text) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -22,18 +22,50 @@ class MemberDetailScreen extends StatelessWidget {
     );
   }
 
+  String get _roleLabel {
+    switch (role) {
+      case 'admin':
+        return 'Admin';
+      case 'coach':
+        return 'Coach';
+      case 'athlete':
+      default:
+        return 'Athlete';
+    }
+  }
+
+  Color get _roleColor {
+    switch (role) {
+      case 'admin':
+        return Colors.orange;
+      case 'coach':
+        return Colors.purple;
+      case 'athlete':
+      default:
+        return Colors.green;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
+
     return AppScaffold(
       title: 'Member',
       child: ListView(
         children: [
           AppCard(
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 28,
-                  child: Icon(Icons.person),
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
@@ -42,7 +74,23 @@ class MemberDetailScreen extends StatelessWidget {
                     children: [
                       Text(name, style: AppTextStyles.title),
                       const SizedBox(height: AppSpacing.xs),
-                      Text('Status: $status', style: AppTextStyles.caption),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _roleColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          _roleLabel,
+                          style: AppTextStyles.caption.copyWith(
+                            color: _roleColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -54,20 +102,28 @@ class MemberDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text('Contact', style: AppTextStyles.caption),
+                const SizedBox(height: AppSpacing.sm),
+                Text(email, style: AppTextStyles.body),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 const Text('Membership', style: AppTextStyles.caption),
                 const SizedBox(height: AppSpacing.sm),
-                Text(plan, style: AppTextStyles.title),
-                const SizedBox(height: AppSpacing.md),
-                const Text('Email', style: AppTextStyles.caption),
-                const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '${name.toLowerCase().replaceAll(' ', '.')}@gym.com',
-                  style: AppTextStyles.body,
+                  'Plan data pending',
+                  style: AppTextStyles.title,
                 ),
-                const SizedBox(height: AppSpacing.md),
-                const Text('Phone', style: AppTextStyles.caption),
                 const SizedBox(height: AppSpacing.xs),
-                const Text('+34 600 123 456', style: AppTextStyles.body),
+                const Text(
+                  'This section will use real membership data later.',
+                  style: AppTextStyles.caption,
+                ),
               ],
             ),
           ),
@@ -106,37 +162,22 @@ class MemberDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Recent activity', style: AppTextStyles.title),
-                SizedBox(height: AppSpacing.md),
-                _ActivityRow(text: 'Booked CrossFit on Monday'),
+                Text('Activity', style: AppTextStyles.title),
                 SizedBox(height: AppSpacing.sm),
-                _ActivityRow(text: 'Membership renewed this month'),
-                SizedBox(height: AppSpacing.sm),
-                _ActivityRow(text: 'Commented on Monday WOD'),
+                Text(
+                  'Activity data pending',
+                  style: AppTextStyles.body,
+                ),
+                SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Recent bookings, attendance and membership events will appear here later.',
+                  style: AppTextStyles.caption,
+                ),
               ],
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ActivityRow extends StatelessWidget {
-  const _ActivityRow({
-    required this.text,
-  });
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(Icons.circle, size: 8),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(child: Text(text)),
-      ],
     );
   }
 }

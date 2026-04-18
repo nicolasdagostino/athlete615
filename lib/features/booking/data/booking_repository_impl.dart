@@ -9,29 +9,20 @@ class BookingRepositoryImpl {
     final gymId = AppSession.gymId;
     if (gymId == null) return const [];
 
-    final rows = await client
-        .from('classes')
-        .select('id, name, coach_name, starts_at, duration_minutes, capacity, class_bookings(status)')
-        .eq('gym_id', gymId)
-        .gte('starts_at', DateTime.now().toIso8601String())
-        .order('starts_at', ascending: true);
+    final rows = await client.rpc(
+      'list_gym_classes_with_counts',
+      params: {'p_gym_id': gymId},
+    );
 
     return rows.map<GymClass>((row) {
-      final bookings = List<Map<String, dynamic>>.from(
-        row['class_bookings'] as List? ?? const [],
-      );
-
-      final bookedCount =
-          bookings.where((booking) => booking['status'] == 'booked').length;
-
       return GymClass(
         id: row['id'] as String,
         name: row['name'] as String,
         coachName: (row['coach_name'] as String?) ?? 'Unknown coach',
-        startsAt: DateTime.parse(row['starts_at'] as String),
+        startsAt: DateTime.parse(row['starts_at'] as String).toLocal(),
         durationMinutes: (row['duration_minutes'] as num).toInt(),
         capacity: (row['capacity'] as num).toInt(),
-        bookedCount: bookedCount,
+        bookedCount: (row['booked_count'] as num).toInt(),
       );
     }).toList();
   }
@@ -51,7 +42,6 @@ class BookingRepositoryImpl {
       );
     }).toList();
   }
-
 
   Future<void> cancelBooking(String classId) async {
     final client = SupabaseClientProvider.client;
@@ -78,5 +68,17 @@ class BookingRepositoryImpl {
       },
       onConflict: 'class_id,user_id',
     );
+  }
+
+  Future<void> checkInToClass(String classId) async {
+    final client = SupabaseClientProvider.client;
+    final userId = client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    await client
+        .from('class_bookings')
+        .update({'status': 'attended'})
+        .eq('class_id', classId)
+        .eq('user_id', userId);
   }
 }
