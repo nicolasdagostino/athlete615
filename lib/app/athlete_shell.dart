@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../features/booking/presentation/screens/booking_screen.dart';
 import '../features/profile/presentation/screens/profile_screen.dart';
 import '../features/workouts/presentation/screens/workouts_screen.dart';
+import '../features/workouts/presentation/screens/explore_screen.dart';
 
 class AthleteShell extends StatefulWidget {
   const AthleteShell({super.key});
@@ -16,6 +17,7 @@ class _AthleteShellState extends State<AthleteShell> {
   final _pages = const [
     BookingScreen(),
     WorkoutsScreen(),
+    ExploreScreen(),
     ProfileScreen(),
   ];
 
@@ -36,6 +38,10 @@ class _AthleteShellState extends State<AthleteShell> {
           NavigationDestination(
             icon: Icon(Icons.fitness_center_outlined),
             label: 'Workouts',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.explore_outlined),
+            label: 'Explore',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

@@ -119,9 +119,7 @@ class _MembersScreenState extends State<MembersScreen> {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => MemberDetailScreen(
-                                  name: member.fullName,
-                                  email: member.email,
-                                  role: member.role,
+                                  userId: member.userId,
                                 ),
                               ),
                             );

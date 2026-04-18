@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../../../core/config/app_session.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/enums/app_role.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/feedback/app_loader.dart';
@@ -7,6 +9,8 @@ import '../../../../shared/widgets/layout/app_scaffold.dart';
 import '../../data/workouts_repository_impl.dart';
 import '../../domain/models/workout_summary.dart';
 import 'workout_detail_screen.dart';
+import 'create_workout_screen.dart';
+import 'manage_workouts_screen.dart';
 import '../widgets/workout_card.dart';
 
 class WorkoutsScreen extends StatefulWidget {
@@ -18,6 +22,34 @@ class WorkoutsScreen extends StatefulWidget {
 
 class _WorkoutsScreenState extends State<WorkoutsScreen> {
   final _repo = WorkoutsRepositoryImpl();
+
+  bool get _canCreateWorkout {
+    final role = AppSession.role;
+    return role == AppRole.admin || role == AppRole.coach || role == AppRole.owner;
+  }
+
+
+  Future<void> _openManageWorkouts() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const ManageWorkoutsScreen(),
+      ),
+    );
+
+    await _load();
+  }
+
+  Future<void> _openCreateWorkout() async {
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => const CreateWorkoutScreen(),
+      ),
+    );
+
+    if (created == true) {
+      await _load();
+    }
+  }
 
   bool _loading = true;
   List<WorkoutSummary> _items = const [];
@@ -54,6 +86,24 @@ class _WorkoutsScreenState extends State<WorkoutsScreen> {
 
     return AppScaffold(
       title: 'Workouts',
+      floatingActionButton: _canCreateWorkout
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton.small(
+                  heroTag: 'manage_workouts',
+                  onPressed: _openManageWorkouts,
+                  child: const Icon(Icons.edit_outlined),
+                ),
+                const SizedBox(height: 12),
+                FloatingActionButton(
+                  heroTag: 'create_workout',
+                  onPressed: _openCreateWorkout,
+                  child: const Icon(Icons.add),
+                ),
+              ],
+            )
+          : null,
       child: RefreshIndicator(
         onRefresh: _refresh,
         child: _items.isEmpty

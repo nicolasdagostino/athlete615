@@ -84,6 +84,41 @@ class AdminRepositoryImpl {
         .eq('id', bookingId);
   }
 
+
+  Future<AdminMemberDetail?> getMemberDetail(String userId) async {
+    final client = SupabaseClientProvider.client;
+    final gymId = AppSession.gymId;
+    if (gymId == null) return null;
+
+    final rows = await client.rpc(
+      'get_member_detail',
+      params: {
+        'p_user_id': userId,
+        'p_gym_id': gymId,
+      },
+    );
+
+    if (rows is! List || rows.isEmpty) return null;
+    final row = rows.first as Map<String, dynamic>;
+
+    return AdminMemberDetail(
+      userId: row['user_id'] as String,
+      fullName: row['full_name'] as String,
+      email: row['email'] as String,
+      role: row['role'] as String,
+      activePlanName: row['active_plan_name'] as String?,
+      activePlanType: row['active_plan_type'] as String?,
+      activePlanCredits: (row['active_plan_credits'] as num?)?.toInt(),
+      membershipStartDate: row['membership_start_date'] != null
+          ? DateTime.parse(row['membership_start_date'] as String)
+          : null,
+      membershipEndDate: row['membership_end_date'] != null
+          ? DateTime.parse(row['membership_end_date'] as String)
+          : null,
+      membershipActive: row['membership_active'] as bool? ?? false,
+    );
+  }
+
   Future<List<AdminMemberSummary>> listGymMembers() async {
     final client = SupabaseClientProvider.client;
     final gymId = AppSession.gymId;

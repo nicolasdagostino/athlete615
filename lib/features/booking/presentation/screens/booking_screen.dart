@@ -9,6 +9,7 @@ import '../../../admin/presentation/screens/class_roster_screen.dart';
 import '../../data/booking_repository_impl.dart';
 import '../../domain/models/class_booking.dart';
 import '../../domain/models/gym_class.dart';
+import '../../domain/models/membership_booking_access.dart';
 import '../widgets/booking_day_selector.dart';
 import '../widgets/class_card.dart';
 
@@ -25,6 +26,7 @@ class _BookingScreenState extends State<BookingScreen> {
   bool _loading = true;
   List<GymClass> _allClasses = const [];
   List<ClassBooking> _myBookings = const [];
+  MembershipBookingAccess? _membershipAccess;
   int _selectedDayIndex = 0;
 
   @override
@@ -36,12 +38,14 @@ class _BookingScreenState extends State<BookingScreen> {
   Future<void> _load() async {
     final items = await _repo.listGymClasses();
     final bookings = await _repo.listMyBookings();
+    final membershipAccess = await _repo.getMyMembershipBookingAccess();
 
     if (!mounted) return;
 
     setState(() {
       _allClasses = items;
       _myBookings = bookings;
+      _membershipAccess = membershipAccess;
       _loading = false;
     });
   }
@@ -56,8 +60,13 @@ class _BookingScreenState extends State<BookingScreen> {
       await _load();
 
       if (!mounted) return;
+      final detail = _membershipAccess?.detailLabel;
+      final message = detail == null || detail.isEmpty
+          ? 'Cancelled ${item.name}'
+          : 'Cancelled ${item.name} · $detail';
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cancelled ${item.name}')),
+        SnackBar(content: Text(message)),
       );
     } catch (error) {
       if (!mounted) return;
@@ -73,8 +82,13 @@ class _BookingScreenState extends State<BookingScreen> {
       await _load();
 
       if (!mounted) return;
+      final detail = _membershipAccess?.detailLabel;
+      final message = detail == null || detail.isEmpty
+          ? 'Booked ${item.name}'
+          : 'Booked ${item.name} · $detail';
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Booked ${item.name}')),
+        SnackBar(content: Text(message)),
       );
     } catch (error) {
       if (!mounted) return;
@@ -107,6 +121,25 @@ class _BookingScreenState extends State<BookingScreen> {
 
     return (now.isAfter(checkInStart) || now.isAtSameMomentAs(checkInStart)) &&
         now.isBefore(end);
+  }
+
+
+  String _blockedBookingLabel() {
+    final message = (_membershipAccess?.message ?? '').toLowerCase();
+
+    if (message.contains('credits')) {
+      return 'No credits left';
+    }
+
+    if (message.contains('expired')) {
+      return 'Plan expired';
+    }
+
+    if (message.contains('no active')) {
+      return 'No active plan';
+    }
+
+    return 'Membership required';
   }
 
   bool _isBooked(String classId) {
@@ -169,6 +202,14 @@ class _BookingScreenState extends State<BookingScreen> {
           return (
             label: 'Class full',
             icon: Icons.block,
+            action: null,
+          );
+        }
+
+        if ((_membershipAccess?.bookingAllowed ?? false) == false) {
+          return (
+            label: _blockedBookingLabel(),
+            icon: Icons.lock_outline,
             action: null,
           );
         }
@@ -248,10 +289,21 @@ class _BookingScreenState extends State<BookingScreen> {
     if (days.isEmpty) return const [];
 
     final selectedDay = days[_selectedDayIndex];
+    final now = DateTime.now();
+
     return _allClasses.where((item) {
-      return item.startsAt.year == selectedDay.year &&
+      final sameDay = item.startsAt.year == selectedDay.year &&
           item.startsAt.month == selectedDay.month &&
           item.startsAt.day == selectedDay.day;
+
+      if (!sameDay) return false;
+
+      if (AppSession.role == AppRole.athlete) {
+        final end = item.startsAt.add(Duration(minutes: item.durationMinutes));
+        return end.isAfter(now);
+      }
+
+      return true;
     }).toList();
   }
 

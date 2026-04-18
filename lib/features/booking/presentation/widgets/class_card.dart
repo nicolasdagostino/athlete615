@@ -38,7 +38,6 @@ class ClassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spotsText = isFull ? 'No spots left' : '$spotsLeft spots left';
 
     return AppCard(
       child: Column(

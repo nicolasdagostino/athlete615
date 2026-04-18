@@ -3,6 +3,7 @@ import '../features/booking/presentation/screens/booking_screen.dart';
 import '../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../features/profile/presentation/screens/profile_screen.dart';
 import '../features/workouts/presentation/screens/workouts_screen.dart';
+import '../features/workouts/presentation/screens/explore_screen.dart';
 
 class AdminShell extends StatefulWidget {
   const AdminShell({super.key});
@@ -18,6 +19,7 @@ class _AdminShellState extends State<AdminShell> {
     DashboardScreen(),
     BookingScreen(),
     WorkoutsScreen(),
+    ExploreScreen(),
     ProfileScreen(),
   ];
 
@@ -42,6 +44,10 @@ class _AdminShellState extends State<AdminShell> {
           NavigationDestination(
             icon: Icon(Icons.fitness_center_outlined),
             label: 'Workouts',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.explore_outlined),
+            label: 'Explore',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
